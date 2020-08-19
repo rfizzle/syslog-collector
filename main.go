@@ -36,7 +36,7 @@ func main() {
 	// Setup log writer
 	tmpWriter, err := outputs.NewTmpWriter()
 	if err != nil {
-		log.Errorf("%v\n", err.Error())
+		log.Errorf("%v", err.Error())
 		os.Exit(1)
 	}
 
@@ -59,7 +59,7 @@ func main() {
 	if viper.GetString("protocol") == "tcp" || viper.GetString("protocol") == "both" {
 		log.Infof("syslog-collector listening on %s/%s", setAddress, "TCP")
 		if err = server.ListenTCP(setAddress); err != nil {
-			log.Errorf("unable to start TCP listener on %s\n", setAddress)
+			log.Errorf("unable to start TCP listener on %s", setAddress)
 			os.Exit(1)
 		}
 	}
@@ -68,7 +68,7 @@ func main() {
 	if viper.GetString("protocol") == "udp" || viper.GetString("protocol") == "both" {
 		log.Infof("syslog-collector listening on %s/%s", setAddress, "UDP")
 		if err = server.ListenUDP(setAddress); err != nil {
-			log.Errorf("unable to start UDP listener on %s\n", setAddress)
+			log.Errorf("unable to start UDP listener on %s", setAddress)
 			os.Exit(1)
 		}
 	}
@@ -100,18 +100,18 @@ func getEvents(rotationTime int, channel syslog.LogPartsChannel, tmpWriter *outp
 
 			// Print verbose
 			if viper.GetBool("verbose") {
-				log.Debugf("Temporary log file written to: %v\n", tmpWriter.LastFilePath)
+				log.Debugf("Temporary log file written to: %v", tmpWriter.LastFilePath)
 			}
 
 			// Write to outputs
 			if err := outputs.WriteToOutputs(tmpWriter.LastFilePath, timestamp.Format(time.RFC3339)); err != nil {
-				log.Errorf("Unable to write to output: %v\n", err)
-				log.Errorf("Temporary file: %s\n", tmpWriter.LastFilePath)
-				log.Errorf("%v\n", err)
+				log.Errorf("Unable to write to output: %v", err)
+				log.Errorf("Temporary file: %s", tmpWriter.LastFilePath)
+				log.Errorf("%v", err)
 			}
 
 			// Let know that event has been processes
-			log.Infof("%v events processed...\n", count)
+			log.Infof("%v events processed...", count)
 
 			// Update limit count
 			timestamp = time.Now()
@@ -163,7 +163,7 @@ func getEvents(rotationTime int, channel syslog.LogPartsChannel, tmpWriter *outp
 
 		// Write to tmp log
 		if err :=  tmpWriter.WriteLog(string(pretty.Ugly(jsonString))); err != nil {
-			log.Errorf("Unable to write log: %v\n", err)
+			log.Errorf("Unable to write log: %v", err)
 			continue
 		}
 

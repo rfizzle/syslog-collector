@@ -2,13 +2,11 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	"github.com/rfizzle/collector-helpers/config"
 	"github.com/rfizzle/collector-helpers/outputs"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"net"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -17,6 +15,7 @@ func setupCliFlags() error {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
+	config.InitCLIParams()
 	flag.Int("schedule", 30, "time in seconds to collect")
 	flag.String("ip", "", "ip address to listen on")
 	flag.Int("port", 1514, "port to listen on")
@@ -24,7 +23,6 @@ func setupCliFlags() error {
 	flag.String("parser", "", "parser to use for syslog messages (grok, json, kv)")
 	flag.StringArray("grok-pattern", []string{}, "grok pattern to parse logs to")
 	flag.BoolP("verbose", "v", false, "verbose logging")
-	flag.StringP("config", "c", "", "config file")
 	outputs.InitCLIParams()
 	flag.Parse()
 	err := viper.BindPFlags(flag.CommandLine)
@@ -34,43 +32,13 @@ func setupCliFlags() error {
 	}
 
 	// Check config
-	if err := checkConfigParams(); err != nil {
+	if err := config.CheckConfigParams(); err != nil {
 		return err
 	}
 
 	// Check parameters
 	if err := checkRequiredParams(); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func checkConfigParams() error {
-	if viper.GetString("config") != "" {
-		if !fileExists(viper.GetString("config")) {
-			return fmt.Errorf("config file does not exist at: %v", viper.GetString("config"))
-		}
-
-		dir, file := filepath.Split(viper.GetString("config"))
-		extWithDot := strings.ToLower(filepath.Ext(viper.GetString("config")))
-		ext := strings.ReplaceAll(extWithDot, ".", "")
-
-		supportedTypes := []string{"json", "toml", "yaml", "yml", "properties", "props", "prop", "env", "dotenv"}
-		if !contains(supportedTypes, ext) {
-			return fmt.Errorf("invalid config file type (%s) (supported: %s )", ext, strings.Join(supportedTypes[:], ", "))
-		}
-
-		fileName := strings.TrimSuffix(file, extWithDot)
-
-		viper.SetConfigName(fileName)
-		viper.SetConfigType(ext)
-		viper.AddConfigPath(dir)
-
-		err := viper.ReadInConfig() // Find and read the config file
-		if err != nil { // Handle errors reading the config file
-			return fmt.Errorf("Fatal error config file: %s \n", err)
-		}
 	}
 
 	return nil
@@ -102,14 +70,6 @@ func checkRequiredParams() error {
 	}
 
 	return nil
-}
-
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
 }
 
 func contains(s []string, e string) bool {
