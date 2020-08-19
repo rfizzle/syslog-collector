@@ -44,13 +44,14 @@ $ echo '
 {
   "ip": "0.0.0.0",
   "port": 514,
-  "protocol": "udp",
+  "protocol": "tcp",
+  "parser": "json",
   "file": true,
   "file-rotate": true,
   "file-path": "/var/log/syslog-collector.log"
 }
 ' > /etc/syslog-collector/config.json
-$ /usr/bin/syslog-collector -c --config-file /etc/syslog-collector/config.json
+$ /usr/bin/syslog-collector -c /etc/syslog-collector/config.json
 ```
 
 ### What are the options?
@@ -103,16 +104,28 @@ The protocol of the port to accept.
  "protocol": "udp"
 ```
 
-#### `grok-pattern` **required**
+#### `parser` **required**
+
+The parser for the syslog message.
+
+* Default Value: none
+* Type: String  (one of: grok, json, kv)
+* Environment Variable: `SYSLOG_COLLECTOR_PARSER`
+* Config file format (depends on type, presented is JSON):
+```
+ "parser": "json"
+```
+
+#### `grok-pattern` **required if parser == grok**
 
 The grok pattern to use to parse the syslog message.
 
 * Default Value: none
-* Type: String 
+* Type: String Array
 * Environment Variable: `SYSLOG_COLLECTOR_GROK_PATTERN`
 * Config file format (depends on type, presented is JSON):
 ```
- "grok-pattern": "%{TIMESTAMP_ISO8601:timestamp}%{SPACE}%{PROG:deviceHostName}"
+ "grok-pattern": ["%{TIMESTAMP_ISO8601:timestamp}%{SPACE}%{PROG:deviceHostName}"]
 ```
 
 #### `schedule`

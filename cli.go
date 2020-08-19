@@ -6,7 +6,6 @@ import (
 	"github.com/rfizzle/collector-helpers/outputs"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -22,16 +21,16 @@ func setupCliFlags() error {
 	flag.String("ip", "", "ip address to listen on")
 	flag.Int("port", 1514, "port to listen on")
 	flag.String("protocol", "udp", "protocol to use (tcp, udp, both)")
-	flag.String("grok-pattern", "", "grok pattern to parse logs to")
+	flag.String("parser", "", "parser to use for syslog messages (grok, json, kv)")
+	flag.StringArray("grok-pattern", []string{}, "grok pattern to parse logs to")
 	flag.BoolP("verbose", "v", false, "verbose logging")
-	flag.BoolP("config", "c", false, "enable config file")
-	flag.String("config-path", "", "config file path")
+	flag.StringP("config", "c", "", "config file")
 	outputs.InitCLIParams()
 	flag.Parse()
 	err := viper.BindPFlags(flag.CommandLine)
 
 	if err != nil {
-		log.Fatalf("Failed parsing flags: %v", err.Error())
+		return err
 	}
 
 	// Check config
@@ -48,21 +47,21 @@ func setupCliFlags() error {
 }
 
 func checkConfigParams() error {
-	if viper.GetBool("config") {
-		if !fileExists(viper.GetString("config-path")) {
-			return errors.New("missing config file path param (--config-path)")
+	if viper.GetString("config") != "" {
+		if !fileExists(viper.GetString("config")) {
+			return fmt.Errorf("config file does not exist at: %v", viper.GetString("config"))
 		}
 
-		dir, file := filepath.Split(viper.GetString("config-path"))
-		ext := strings.ToLower(filepath.Ext(viper.GetString("config-path")))
+		dir, file := filepath.Split(viper.GetString("config"))
+		extWithDot := strings.ToLower(filepath.Ext(viper.GetString("config")))
+		ext := strings.ReplaceAll(extWithDot, ".", "")
 
 		supportedTypes := []string{"json", "toml", "yaml", "yml", "properties", "props", "prop", "env", "dotenv"}
 		if !contains(supportedTypes, ext) {
-			e := fmt.Sprintf("invalid config file type (supported: %s )", strings.Join(supportedTypes[:], ", "))
-			return errors.New(e)
+			return fmt.Errorf("invalid config file type (%s) (supported: %s )", ext, strings.Join(supportedTypes[:], ", "))
 		}
 
-		fileName := strings.TrimSuffix(file, ext)
+		fileName := strings.TrimSuffix(file, extWithDot)
 
 		viper.SetConfigName(fileName)
 		viper.SetConfigType(ext)
@@ -88,6 +87,14 @@ func checkRequiredParams() error {
 
 	if !contains([]string{"tcp", "udp", "both"}, viper.GetString("protocol")) {
 		return errors.New("invalid protocol param (--protocol)")
+	}
+
+	if !contains([]string{"grok", "json", "kv"}, viper.GetString("parser")) {
+		return errors.New("invalid parser param (--parser)")
+	}
+
+	if viper.GetString("parser") == "grok" && len(viper.GetStringSlice("grok-pattern")) == 0 {
+		return errors.New("invalid grok-pattern param (--grok-pattern)")
 	}
 
 	if err := outputs.ValidateCLIParams(); err != nil {

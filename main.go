@@ -23,6 +23,7 @@ func main() {
 	// Setup Parameters via CLI or ENV
 	if err := setupCliFlags(); err != nil {
 		log.Errorf("initialization failed: %v", err.Error())
+		os.Exit(1)
 	}
 
 	// Set log level based on supplied verbosity
@@ -85,15 +86,15 @@ func main() {
 // Get events
 func getEvents(rotationTime int, channel syslog.LogPartsChannel, tmpWriter *outputs.TmpWriter) {
 	// Setup required variables
+	var err error
+	var jsonString []byte
 	count := 0
 	timestamp := time.Now()
-	g, _ := grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
 
 	// Loop through channel
 	for logParts := range channel {
 		// Rotate file and output if set duration has passed
 		if time.Now().After(timestamp.Add(time.Duration(rotationTime) * time.Second)) && count > 0 {
-
 			// Rotate temp file
 			_ = tmpWriter.Rotate()
 
@@ -123,28 +124,47 @@ func getEvents(rotationTime int, channel syslog.LogPartsChannel, tmpWriter *outp
 			}
 		}
 
-		// Setup grok string
-		grokString := viper.GetString("grok-pattern")
-
 		// Parse content
-		values, err := g.Parse(grokString, logParts["content"].(string))
+		if viper.GetString("parser") == "grok" {
+			g, _ := grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
+			var values map[string]string
 
-		// Print error
-		if err != nil {
-			log.Errorf("ERROR: %v", err)
+			// Setup grok string
+			for _, v := range viper.GetStringSlice("grok-pattern") {
+				values, err = g.Parse(v, logParts["content"].(string))
+				if err == nil {
+					break
+				}
+			}
+
+			// If error parsing, print error and skip to next
+			if err != nil {
+				log.Warnf("Unable to parse: %v", err)
+				continue
+			}
+
+			// Marshal map to json
+			jsonString, err = json.Marshal(values)
+
+			// Print error
+			if err != nil {
+				log.Errorf("Unable to marshal map to JSON: %v", err)
+				continue
+			}
+		} else if viper.GetString("parser") == "json" {
+			jsonString = []byte(logParts["content"].(string))
 		}
 
-		// Marshal map to json
-		jsonString, err := json.Marshal(values)
-
-		// Print error
-		if err != nil {
-			log.Errorf("ERROR: %v", err)
+		// Handle null parse results
+		if jsonString == nil {
+			log.Error("Parse result for syslog message resulted in null object")
+			continue
 		}
 
 		// Write to tmp log
 		if err :=  tmpWriter.WriteLog(string(pretty.Ugly(jsonString))); err != nil {
-			log.Errorf("ERROR: %v\n", err)
+			log.Errorf("Unable to write log: %v\n", err)
+			continue
 		}
 
 		// Increment count to prevent rotating on empty
