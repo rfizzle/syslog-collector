@@ -109,7 +109,7 @@ The protocol of the port to accept.
 The parser for the syslog message.
 
 * Default Value: none
-* Type: String  (one of: grok, json, kv)
+* Type: String  (one of: grok, json, kv, cef)
 * Environment Variable: `SYSLOG_COLLECTOR_PARSER`
 * Config file format (depends on type, presented is JSON):
 ```
@@ -413,4 +413,52 @@ endpoint.
 * Config file format (depends on type, presented is JSON):
 ```
  "http-max-items": 500
+```
+
+#### `pubsub`
+
+This flag will enable writing the logs to Google Cloud PubSub.
+
+* Default Value: `false`
+* Type: Boolean
+* Environment Variable: `SYSLOG_COLLECTOR_PUBSUB`
+* Config file format (depends on type, presented is JSON):
+```
+ "pubsub": false
+```
+
+#### `pubsub-project`
+
+This GCP project that the PubSub Topic exists in.
+
+* Default Value: none
+* Type: String
+* Environment Variable: `SYSLOG_COLLECTOR_PUBSUB_PROJECT`
+* Config file format (depends on type, presented is JSON):
+```
+ "pubsub-project": "acme-project"
+```
+
+#### `pubsub-topic`
+
+This PubSub topic to write the events into.
+
+* Default Value: none
+* Type: String
+* Environment Variable: `SYSLOG_COLLECTOR_PUBSUB_TOPIC`
+* Config file format (depends on type, presented is JSON):
+```
+ "pubsub-topic": "raw-logs"
+```
+
+#### `pubsub-credentials`
+
+The Google JSON key for an IAM account that has been granted write access to the PubSub topic.
+
+* Default Value: none
+* Type: String
+* Environment Variable: `SYSLOG_COLLECTOR_PUBSUB_CREDENTIALS`
+* Config file format (depends on type, presented is JSON):
+```
+ "pubsub-credentials": "path/to/credentials/file"
 ```
