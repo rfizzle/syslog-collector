@@ -1,13 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/rfizzle/collector-helpers/outputs"
+	"github.com/rfizzle/syslog-collector/parser"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/tidwall/pretty"
-	"github.com/vjeantet/grok"
 	"gopkg.in/mcuadros/go-syslog.v2"
 	"os"
 	"os/signal"
@@ -135,40 +134,51 @@ func getEvents(rotationTime int, channel syslog.LogPartsChannel, tmpWriter *outp
 			}
 		}
 
+		// Get message as string
+		logMessage := logParts["content"].(string)
+
 		// Parse content
 		if viper.GetString("parser") == "grok" {
-			g, _ := grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
-			var values map[string]string
+			// Construct JSON from GROK patterns
+			jsonString, err = parser.ParseGrok(logMessage, viper.GetStringSlice("grok-pattern"))
 
-			// Setup grok string
-			for _, v := range viper.GetStringSlice("grok-pattern") {
-				values, err = g.Parse(v, logParts["content"].(string))
-				if err == nil {
-					break
-				}
-			}
-
-			// If error parsing, print error and skip to next
+			// Handle errors in grok parsing
 			if err != nil {
-				log.Warnf("unable to parse: %v", err)
-				continue
-			}
-
-			// Marshal map to json
-			jsonString, err = json.Marshal(values)
-
-			// Print error
-			if err != nil {
-				log.Errorf("unable to marshal map to JSON: %v", err)
+				log.Warnf("unable to marshal map to JSON: %v", err)
 				continue
 			}
 		} else if viper.GetString("parser") == "json" {
-			jsonString = []byte(logParts["content"].(string))
+			// Construct JSON from raw message
+			jsonString, err = parser.ParseJson(logMessage)
+
+			// Handle errors in JSON parsing
+			if err != nil {
+				log.Warnf("unable to parse json message: %v", err)
+				continue
+			}
+		} else if viper.GetString("parser") == "kv" {
+			// Construct JSON from KV string
+			jsonString, err = parser.ParseKV(logMessage)
+
+			// Handle errors in KV parsing
+			if err != nil {
+				log.Warnf("unable to parse kv message: %v", err)
+				continue
+			}
+		} else if viper.GetString("parser") == "cef" {
+			// Construct JSON from CEF string
+			jsonString, err = parser.ParseCef(logMessage)
+
+			// Handle errors in CEF parsing
+			if err != nil {
+				log.Warnf("unable to parse cef message: %v", err)
+				continue
+			}
 		}
 
 		// Handle null parse results
 		if jsonString == nil {
-			log.Error("parse result for syslog message resulted in null object")
+			log.Error("parse result for syslog message resulted in nil object")
 			continue
 		}
 
