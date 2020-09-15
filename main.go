@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/rfizzle/collector-helpers/outputs"
 	"github.com/rfizzle/syslog-collector/parser"
@@ -134,8 +135,20 @@ func getEvents(rotationTime int, channel syslog.LogPartsChannel, tmpWriter *outp
 			}
 		}
 
-		// Get message as string
-		logMessage := logParts["content"].(string)
+		// Define log message
+		var logMessage string
+
+		// Check all syslog types
+		if logParts["content"] == nil && logParts["message"] == nil {
+			continue
+		}
+
+		// Get message from syslog struct (map key depends on format)
+		if logParts["content"] != nil {
+			logMessage = logParts["content"].(string)
+		} else {
+			logMessage = logParts["message"].(string)
+		}
 
 		// Parse content
 		if viper.GetString("parser") == "grok" {
@@ -172,6 +185,41 @@ func getEvents(rotationTime int, channel syslog.LogPartsChannel, tmpWriter *outp
 			// Handle errors in CEF parsing
 			if err != nil {
 				log.Warnf("unable to parse cef message: %v", err)
+				continue
+			}
+		} else if viper.GetString("parser") == "raw" {
+			jsonString, err = json.Marshal(logParts)
+
+			// Handle errors in RAW parsing
+			if err != nil {
+				log.Warnf("unable to parse raw message: %v", err)
+				continue
+			}
+		}
+
+		if viper.GetString("parser") != "raw" && viper.GetBool("keep-syslog") {
+			// Merge message and syslog info
+			finalJsonMap := make(map[string]interface{})
+			err = json.Unmarshal(jsonString, &finalJsonMap)
+
+			// Handle errors in unmarshal
+			if err != nil {
+				log.Warnf("unable to unmarshal json results: %v", err)
+				continue
+			}
+
+			// Loop through syslog info and add to final json object
+			for k, v := range logParts {
+				if (k == "message" || k == "content") && !viper.GetBool("keep-message") {
+					continue
+				}
+				finalJsonMap[k] = v
+			}
+
+			jsonString, err = json.Marshal(finalJsonMap)
+
+			if err != nil {
+				log.Error("error marshalling final json: %v", err)
 				continue
 			}
 		}

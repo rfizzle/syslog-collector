@@ -20,8 +20,10 @@ func setupCliFlags() error {
 	flag.String("ip", "", "ip address to listen on")
 	flag.Int("port", 1514, "port to listen on")
 	flag.String("protocol", "udp", "protocol to use (tcp, udp, both)")
-	flag.String("parser", "", "parser to use for syslog messages (grok, json, kv, cef)")
+	flag.String("parser", "raw", "parser to use for syslog messages (grok, json, kv, cef, raw)")
 	flag.StringArray("grok-pattern", []string{}, "grok pattern to parse logs to")
+	flag.Bool("keep-syslog", false,  "keep original syslog information")
+	flag.Bool("keep-message", false,  "keep the original syslog message")
 	flag.BoolP("verbose", "v", false, "verbose logging")
 	outputs.InitCLIParams()
 	flag.Parse()
@@ -57,7 +59,7 @@ func checkRequiredParams() error {
 		return errors.New("invalid protocol param (--protocol)")
 	}
 
-	if !contains([]string{"grok", "json", "kv", "cef"}, viper.GetString("parser")) {
+	if !contains([]string{"grok", "json", "kv", "cef", "raw"}, viper.GetString("parser")) {
 		return errors.New("invalid parser param (--parser)")
 	}
 
