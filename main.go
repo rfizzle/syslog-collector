@@ -219,7 +219,7 @@ func getEvents(rotationTime int, channel syslog.LogPartsChannel, tmpWriter *outp
 			jsonString, err = json.Marshal(finalJsonMap)
 
 			if err != nil {
-				log.Error("error marshalling final json: %v", err)
+				log.Errorf("error marshalling final json: %v", err)
 				continue
 			}
 		}

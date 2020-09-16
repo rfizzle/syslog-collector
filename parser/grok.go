@@ -2,17 +2,17 @@ package parser
 
 import (
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
+	"fmt"
 	"github.com/vjeantet/grok"
 )
 
-func ParseGrok(event string, grokPatterns []string) ([]byte, error) {
+func parseEventWithGrokPatterns(event string, grokPatterns []string) (map[string]string, error) {
 	// Setup grok
 	g, err := grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
 
 	// Handle errors
 	if err != nil {
-		log.Errorf("unable to setup grok parser: %v", err)
+		return nil, fmt.Errorf("unable to setup grok parser: %v", err)
 	}
 
 	// Setup values map
@@ -28,7 +28,16 @@ func ParseGrok(event string, grokPatterns []string) ([]byte, error) {
 
 	// If none of the patterns worked, print error and skip to next
 	if err != nil {
-		log.Warnf("unable to parse: %v", err)
+		return nil, fmt.Errorf("unable to parse: %v", err)
+	}
+
+	return values, nil
+}
+
+func ParseGrok(event string, grokPatterns []string) ([]byte, error) {
+	values, err := parseEventWithGrokPatterns(event, grokPatterns)
+
+	if err != nil {
 		return nil, err
 	}
 
